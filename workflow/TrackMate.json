@@ -1,0 +1,729 @@
+{
+  "name": "TrackMate",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1920,
+        48
+      ],
+      "id": "1e2e25db-0742-415d-8187-9e9b3cf94bb2",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1SA6tJzkpSUnRiYNuYjM4_Jmm3fIa6Q-54QTooiavSz0",
+          "mode": "list",
+          "cachedResultName": "StudentData",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1SA6tJzkpSUnRiYNuYjM4_Jmm3fIa6Q-54QTooiavSz0/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 318297655,
+          "mode": "list",
+          "cachedResultName": "Students",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1SA6tJzkpSUnRiYNuYjM4_Jmm3fIa6Q-54QTooiavSz0/edit#gid=318297655"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -1712,
+        48
+      ],
+      "id": "01ec8f05-2263-4bf5-a7cc-1049d18d34aa",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GrXWOL01uWG4fkx7",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are an academic risk classifier. Classify this student into exactly \none category based on their data:\n\n- \"sudden\": current score is 25+ points below their own past average\n- \"chronic\": score has been consistently low (below 50) with no major change\n- \"gradual\": score is slowly declining, not yet critical\n- \"none\": no concerning pattern\n\nStudent: {{ $json.Name }}\nAttendance: {{ $json['Attendance%'] }}%\nCurrent Score: {{ $json.QuizScore }}\nPast Average: {{ $json.PastAvgScore }}\nAssignment Status: {{ $json.AssignmentStatus }}\n\nRespond ONLY in this JSON format, nothing else:\n{\"risk_type\": \"sudden|chronic|gradual|none\", \"reason\": \"one sentence explanation\", \"message\": \"a short, empathetic message to send the student\"}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        -1296,
+        48
+      ],
+      "id": "5e770beb-2135-427e-b5f8-4d51e885bfef",
+      "name": "Message a model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "Dj8im52UljTpWDWX",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "maxItems": 2
+      },
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        -1504,
+        48
+      ],
+      "id": "6c2012de-6d5c-456e-a63b-a4abba304a04",
+      "name": "Limit"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst sheetData = $('Get row(s) in sheet').all();\n\nreturn items.map((item, index) => {\n  const raw = item.json.content.parts[0].text;\n  const cleaned = raw.replace(/```json\\n?/g, '').replace(/```/g, '').trim();\n  const parsed = JSON.parse(cleaned);\n  const originalData = sheetData[index].json;\n\n  return {\n    json: {\n      ...originalData,\n      risk_type: parsed.risk_type,\n      reason: parsed.reason,\n      message: parsed.message\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -960,
+        48
+      ],
+      "id": "df49363d-c10a-4c10-8e33-22b67785527e",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.risk_type }}",
+                    "rightValue": "sudden",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "e44150d4-32de-4b7c-8df5-847f7cc9bbab"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "78055c6b-4de4-4861-896f-460ae939da3f",
+                    "leftValue": "={{ $json.risk_type }}",
+                    "rightValue": "chronic",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "83e5d86b-0ee4-45b8-9c4b-8d84dd8c9fee",
+                    "leftValue": "={{ $json.risk_type }}",
+                    "rightValue": "gradual",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "4283be6e-c546-443f-9b1e-2a7365ff9a58",
+                    "leftValue": "={{ $json.risk_type }}",
+                    "rightValue": "none",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -720,
+        16
+      ],
+      "id": "8ed7dc63-da13-4f94-9c8e-0b4dd22f78f3",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.Email }}",
+        "subject": "Checking in",
+        "emailType": "text",
+        "message": "={{ $json.message }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -416,
+        -176
+      ],
+      "id": "170b684f-e733-4a92-92fd-d00360c54ed8",
+      "name": "Send a message",
+      "webhookId": "4740d212-e8aa-430d-9136-f7220ae6c491",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "RZ0Hw2hzkNoaZgRq",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.Email }}",
+        "subject": "Let's get you back on track",
+        "emailType": "text",
+        "message": "={{ $json.message }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -288,
+        -16
+      ],
+      "id": "ba178582-e24f-4850-a393-116e29d6577d",
+      "name": "Send a message1",
+      "webhookId": "a3bab640-f270-4c88-be63-650eff884dc1",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "RZ0Hw2hzkNoaZgRq",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.Email }}",
+        "subject": "Just checking in on your progress",
+        "emailType": "text",
+        "message": "={{ $json.message }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -368,
+        192
+      ],
+      "id": "aee4aa5a-98b9-44f9-b79b-7449634419ce",
+      "name": "Send a message2",
+      "webhookId": "d6a7d9ca-0c05-4c8a-87c0-0f8b60f7b994",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "RZ0Hw2hzkNoaZgRq",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1SA6tJzkpSUnRiYNuYjM4_Jmm3fIa6Q-54QTooiavSz0",
+          "mode": "list",
+          "cachedResultName": "StudentData",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1SA6tJzkpSUnRiYNuYjM4_Jmm3fIa6Q-54QTooiavSz0/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1860663645,
+          "mode": "list",
+          "cachedResultName": "RiskLog",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1SA6tJzkpSUnRiYNuYjM4_Jmm3fIa6Q-54QTooiavSz0/edit#gid=1860663645"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "StudentID": "={{ $('Get row(s) in sheet').item.json.StudentID }}",
+            "Name": "={{ $('Get row(s) in sheet').item.json.Name }}",
+            "RiskType": "={{ $('Switch').item.json.risk_type }}",
+            "Reason": "={{ $('Switch').item.json.reason }}",
+            "ActionTaken": "=Email sent",
+            "Date": "={{ $now.format('yyyy-MM-dd') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "StudentID",
+              "displayName": "StudentID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "RiskType",
+              "displayName": "RiskType",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Reason",
+              "displayName": "Reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ActionTaken",
+              "displayName": "ActionTaken",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -128,
+        -176
+      ],
+      "id": "f1c566fc-6abb-40d3-8c3b-f6d9c75caca8",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GrXWOL01uWG4fkx7",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1SA6tJzkpSUnRiYNuYjM4_Jmm3fIa6Q-54QTooiavSz0",
+          "mode": "list",
+          "cachedResultName": "StudentData",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1SA6tJzkpSUnRiYNuYjM4_Jmm3fIa6Q-54QTooiavSz0/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1860663645,
+          "mode": "list",
+          "cachedResultName": "RiskLog",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1SA6tJzkpSUnRiYNuYjM4_Jmm3fIa6Q-54QTooiavSz0/edit#gid=1860663645"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "StudentID": "={{ $('Switch').item.json.StudentID }}",
+            "Name": "={{ $('Switch').item.json.Name }}",
+            "RiskType": "={{ $('Switch').item.json.risk_type }}",
+            "Reason": "={{ $('Switch').item.json.reason }}",
+            "Date": "={{ $now.format('yyyy-MM-dd') }}",
+            "ActionTaken": "Email sent"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "StudentID",
+              "displayName": "StudentID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "RiskType",
+              "displayName": "RiskType",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Reason",
+              "displayName": "Reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ActionTaken",
+              "displayName": "ActionTaken",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        0,
+        0
+      ],
+      "id": "804593c4-da95-49ae-9043-c5d6643af78c",
+      "name": "Append row in sheet1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GrXWOL01uWG4fkx7",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1SA6tJzkpSUnRiYNuYjM4_Jmm3fIa6Q-54QTooiavSz0",
+          "mode": "list",
+          "cachedResultName": "StudentData",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1SA6tJzkpSUnRiYNuYjM4_Jmm3fIa6Q-54QTooiavSz0/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1860663645,
+          "mode": "list",
+          "cachedResultName": "RiskLog",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1SA6tJzkpSUnRiYNuYjM4_Jmm3fIa6Q-54QTooiavSz0/edit#gid=1860663645"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "StudentID": "={{ $('Switch').item.json.StudentID }}",
+            "Name": "={{ $('Switch').item.json.Name }}",
+            "RiskType": "={{ $('Switch').item.json.risk_type }}",
+            "Reason": "={{ $('Switch').item.json.reason }}",
+            "ActionTaken": "Email sent",
+            "Date": "={{ $now.format('yyyy-MM-dd') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "StudentID",
+              "displayName": "StudentID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "RiskType",
+              "displayName": "RiskType",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Reason",
+              "displayName": "Reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ActionTaken",
+              "displayName": "ActionTaken",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -64,
+        192
+      ],
+      "id": "0f46b568-c595-45b9-99eb-6d2092cc6600",
+      "name": "Append row in sheet2",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GrXWOL01uWG4fkx7",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a message1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a message2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message1": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message2": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "00827c8f-772b-4adc-90be-e33d7c1a7b76",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b8a09bb67a37a445c11aae1a5036baf3bfc223d1f51c9bf39ba2dc2a61886e3a"
+  },
+  "nodeGroups": [],
+  "id": "KGrxGmGQpEcFrTjE",
+  "tags": []
+}
